@@ -6,11 +6,12 @@ from pydub import AudioSegment
 from pydub.playback import play
 import threading
 import time
+import random
 
 class AudioSentimentMapper:
     def __init__(self, csv_path='mapping.csv', audio_root=''):
         """
-        csv_path: path to your CSV containing (filename, valence, arousal)
+        csv_path: path to CSV containing (filename, valence, arousal) mapping
         audio_root: optional folder path where audio files are stored
         """
         self.audio_data = []
@@ -80,25 +81,31 @@ class AudioSentimentMapper:
 
     def push_signal(self, valence, arousal, intensity):
         """
-        Receives an incoming [valence, arousal, intensity] triple from your colleague’s analysis.
+        Receives an incoming [valence, arousal, intensity] triple
         We append it to a queue/list that the audio thread will read.
         """
         self.incoming_signals.append((valence, arousal, intensity))
+   
+    def play_segment_async(self, audio_segment):
+        """
+        Launch a new thread that calls pydub.play(...) so each new sound can overlap.
+        """
+        t = threading.Thread(target=play, args=(audio_segment,))
+        t.start()
 
     def audio_thread_loop(self):
         """
         Continuously looks for new signals. For each signal, determine
         the best matching sample, scale volume by intensity, and play (mix).
         
-        In a real design, you might want to do more sophisticated crossfading or
-        layering of multiple tracks. This is just a single-sample example.
+        TODO: sophisticated crossfading or layering of multiple tracks
         """
         while self.run_audio:
             if self.incoming_signals:
                 valence, arousal, intensity = self.incoming_signals.pop(0)
                 
                 # 1) Find the best sample from self.audio_data
-                filename = self.find_closest_sample(valence, arousal)
+                filename = self.find_closest_sample(valence, arousal, 0.05)
                 if not filename:
                     continue
                 
@@ -112,25 +119,42 @@ class AudioSentimentMapper:
                 adjusted_segment = base_segment + dB_change
 
                 # 3) Play the segment (blocking call with pydub)
-                play(adjusted_segment)
+                self.play_segment_async(adjusted_segment)
             else:
                 # If no signals are in the queue, just sleep briefly
                 time.sleep(0.05)
 
-    def find_closest_sample(self, valence, arousal):
+    def find_closest_sample(self, valence, arousal, randomness_amt=0.0):
         """
-        Example approach: pick the sample with the minimal Euclidean distance
-        to the new [valence, arousal].
+        Finds all samples' distances to (valence, arousal). Then picks
+        the best sample OR a random sample within (best_distance + randomness_amt).
+        
+        If randomness_amt = 0.0, always picks the closest sample.
+        Otherwise, picks randomly among those within that distance threshold.
         """
-        best_filename = None
-        best_distance = float("inf")
+        # Gather (filename, distance) for each sample
+        distances = []
         for (fn, v, a) in self.audio_data:
-            # ADD RANDOMNESS
             dist = math.sqrt((v - valence) ** 2 + (a - arousal) ** 2)
-            if dist < best_distance:
-                best_distance = dist
-                best_filename = fn
-        return best_filename
+            distances.append((fn, dist))
+
+        # Find the minimum distance
+        if not distances:
+            return None
+        min_distance = min(d[1] for d in distances)
+
+        # Determine the threshold
+        #   e.g. threshold = min_distance + 0.1 => picks all samples within 0.1 of the best distance
+        threshold = min_distance + randomness_amt
+
+        # Collect all filenames whose distance is <= threshold
+        candidates = [fn for (fn, dist) in distances if dist <= threshold]
+
+        if not candidates:
+            return None
+
+        # Randomly pick from the candidate set
+        return random.choice(candidates)
 
 
 if __name__ == "__main__":
@@ -139,7 +163,7 @@ if __name__ == "__main__":
     # and all WAVs are nested somewhere within /path/to/Emo-Soundscapes-Audio/
     mapper = AudioSentimentMapper(
         csv_path="mapping.csv",
-        audio_root="/Users/sjip1492/Downloads/Emo-Soundscapes/Emo-Soundscapes-Audio/"
+        audio_root="Emo-Soundscapes/Emo-Soundscapes-Audio/"
     )
     mapper.start()
 
@@ -152,9 +176,10 @@ if __name__ == "__main__":
         (-0.5, 0.2, 0.3),
     ]
 
+    # simulate the incoming stream of test signals
     for sig in test_signals:
         mapper.push_signal(*sig)
-        time.sleep(1.0)
+        time.sleep(0.1)
 
     # MAKE SURE IT IS CONTINUOUS
     mapper.stop()

@@ -228,7 +228,7 @@ class RealTimeAudioMixer:
 class AudioSentimentMapper:
     def __init__(
         self,
-        csv_path='mapping.csv',
+        csv_path='mapping-society-sounds.csv',
         audio_root='',
         max_layers=10,
         distance_volume_range=10.0,
@@ -378,7 +378,7 @@ class AudioSentimentMapper:
                         loop_duration=self.loop_duration,
                         start_time=time.time()
                     )
-
+                    print(f"Signal playing with valence {valence}, arousal {arousal}, intensity {intensity}")
                     self.mixer.add_voice(voice)
             else:
                 time.sleep(0.05)
@@ -399,8 +399,8 @@ class AudioSentimentMapper:
 
 def test():
     mapper = AudioSentimentMapper(
-        csv_path="mapping.csv",
-        audio_root="Emo-Soundscapes/Emo-Soundscapes-Audio/",
+        csv_path="mapping-society-sounds.csv",
+        audio_root="Emo-Soundscapes/Emo-Soundscapes-Audio/600_Sounds/society",
         max_layers=50,
         distance_volume_range=10.0,
         fade_in_ms=500,

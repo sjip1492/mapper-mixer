@@ -119,7 +119,7 @@ class AudioSentimentMapper:
         """
         t = threading.Thread(target=play, args=(audio_segment,))
         t.start()
-        
+
     def play_segment_sync(self, audio_segment):
         # Blocking play, the user can keep calling it in loops or separate threads.
         play(audio_segment)
@@ -250,30 +250,30 @@ if __name__ == "__main__":
         distance_volume_range=10.0,   # 10 dB difference from closest to farthest in the top set
         fade_in_ms=1000,         # 1-second fade in
         fade_out_ms=1000,        # 1-second fade out
-        loop_enabled=True,      # set True if you want looping
-        loop_duration=8.0       # how long to keep re-playing if looping
+        loop_enabled=False,      # set True if you want looping
+        loop_duration=2.0       # how long to keep re-playing if looping
     );
 
     mapper.start()
 
     # Push some test signals
     test_signals = [
-        (-0.002, 0.92, 0.9),
-        (0.902, 0.902, 0.9),
-        (0.5, 0.0, 0.8),
-        (0.9, 0.5, 1.0),
-        (-0.5, 0.2, 0.3),
-        (0.5, 0.0, 0.8),   # moderate valence/arousal, strong intensity
-        (0.9, 0.5, 1.0),   # high val/ar, full intensity => multiple layers, full volume
-        (-0.5, 0.2, 0.3),  # negative val, low intensity => fewer layers, lower volume
-        (-0.004, 0.9221, 0.39),
-        (0.91102, 0.902, 0.9),
-        (0.225, 0.10, 0.8),
-        (0.129, 0.15, 1.0),
-        (-0.425, 0.52, 0.3),
-        (0.325, 0.10, 0.8),   
-        (0.129, 0.15, 1.0),  
-        (-0.425, 0.32, 0.3),  
+        (-0.002, 0.92, 0.5),
+        (0.902, 0.902, 0.2),
+        # (0.5, 0.0, 0.8),
+        # (0.9, 0.5, 1.0),
+        # (-0.5, 0.2, 0.3),
+        # (0.5, 0.0, 0.8),   # moderate valence/arousal, strong intensity
+        # (0.9, 0.5, 1.0),   # high val/ar, full intensity => multiple layers, full volume
+        # (-0.5, 0.2, 0.3),  # negative val, low intensity => fewer layers, lower volume
+        # (-0.004, 0.9221, 0.39),
+        # (0.91102, 0.902, 0.9),
+        # (0.225, 0.10, 0.8),
+        # (0.129, 0.15, 1.0),
+        # (-0.425, 0.52, 0.3),
+        # (0.325, 0.10, 0.8),   
+        # (0.129, 0.15, 1.0),  
+        # (-0.425, 0.32, 0.3),  
     ]
 
     # simulate the incoming stream of test signals with 0.1 gap in between signals sent

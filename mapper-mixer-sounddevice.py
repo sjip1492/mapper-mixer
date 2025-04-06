@@ -26,7 +26,10 @@ import time
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-
+# save numpy array as npy file
+from numpy import asarray
+from numpy import save
+from numpy import load
 ################################################################################
 # Data structures
 ################################################################################
@@ -233,7 +236,7 @@ class AudioSentimentMapper:
         fade_out_ms=1000,
         loop_enabled=False,
         loop_duration=10.0,
-        samplerate=48000
+        samplerate=44100
     ):
         """
         Similar arguments as before, but now we do real-time mixing.
@@ -398,39 +401,29 @@ def test():
     mapper = AudioSentimentMapper(
         csv_path="mapping.csv",
         audio_root="Emo-Soundscapes/Emo-Soundscapes-Audio/",
-        max_layers=5,
+        max_layers=50,
         distance_volume_range=10.0,
         fade_in_ms=500,
         fade_out_ms=500,
         loop_enabled=False,
         loop_duration=5.0,
-        samplerate=48000,
+        samplerate=44100,
     )
 
     mapper.start()
 
-    # Example signals
-    test_signals = [
-        (0.9, 0.4, 1.0),
-        (0.2, 0.8, 0.5),
-        (0.5, 0.5, 0.8),
-        (-0.002, 0.92, 0.5),
-        (0.902, 0.902, 0.2),
-        (0.5, 0.0, 0.8),
-        (0.9, 0.5, 1.0),
-        (-0.5, 0.2, 0.3),
-        (0.5, 0.0, 0.8),   # moderate valence/arousal, strong intensity
-        (0.9, 0.5, 1.0),   # high val/ar, full intensity => multiple layers, full volume
-        (-0.5, 0.2, 0.3),  # negative val, low intensity => fewer layers, lower volume
-        (-0.004, 0.9221, 0.39),
-        (0.91102, 0.902, 0.9),
-        (0.225, 0.10, 0.8),
-        (0.129, 0.15, 1.0),
-        (-0.425, 0.52, 0.3),
-        (0.325, 0.10, 0.8),   
-        (0.129, 0.15, 1.0),  
-        (-0.425, 0.32, 0.3),  
-    ]
+    test_signals = []
+
+    # Valence, Arousal in [-1, 1] stepping by 0.25
+    vals = np.arange(-1.0, 1.0001, 0.25)
+    # Intensity in [0, 1] stepping by 0.25
+    ints = np.arange(0.0, 1.0001, 0.25)
+
+    for v in vals:
+        for a in vals:
+            for i in ints:
+                # Round for neatness
+                test_signals.append( (round(v,2), round(a,2), round(i,2)) )
 
     for sig in test_signals:
         mapper.push_signal(*sig)

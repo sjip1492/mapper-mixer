@@ -47,7 +47,8 @@ class Voice:
         fade_out_frames: int,
         loop_enabled: bool,
         loop_duration: float,
-        start_time: float
+        start_time: float,
+        randomness_amt = float
     ):
         """
         samples: float32 stereo data, shape (num_frames, 2)
@@ -58,6 +59,7 @@ class Voice:
         loop_enabled: whether we keep looping until loop_duration
         loop_duration: how many seconds to keep re-triggering the sample
         start_time: the absolute time we created this voice (time.time())
+        randomness_amt: threshold distance for near-closest selection. incomign signals only 0.01-precision, whereas samples are scored at 0.000000001 precision
         """
         self.samples = samples
         self.sample_rate = sample_rate
@@ -67,6 +69,7 @@ class Voice:
         self.loop_enabled = loop_enabled
         self.loop_duration = loop_duration
         self.start_time = start_time
+        self.randomness_amt = randomness_amt
 
         # internal tracking
         self.current_pos = 0  # current read frame in the sample
@@ -236,7 +239,8 @@ class AudioSentimentMapper:
         fade_out_ms=1000,
         loop_enabled=False,
         loop_duration=10.0,
-        samplerate=44100
+        samplerate=44100,
+        randomness_amt =0.5
     ):
         """
         Similar arguments as before, but now we do real-time mixing.
@@ -251,6 +255,7 @@ class AudioSentimentMapper:
         self.loop_enabled = loop_enabled
         self.loop_duration = loop_duration
         self.samplerate = samplerate
+        self.randomness_amt = randomness_amt
 
         self.audio_data = []  # list of (filename, val, aro)
         self.loaded_samples = {}  # dict filename -> (np.float32 array shape (N,2), sr)
@@ -332,7 +337,7 @@ class AudioSentimentMapper:
             if signal:
                 valence, arousal, intensity = signal
                 n_to_play = max(1, int(round(self.max_layers * max(0, min(1, intensity)))))
-                top_samples = self.find_top_samples(valence, arousal, n_to_play)
+                top_samples = self.find_top_samples_randomness(valence, arousal, n_to_play)
 
                 if not top_samples:
                     continue
@@ -376,22 +381,39 @@ class AudioSentimentMapper:
                         fade_out_frames=fade_out_frames,
                         loop_enabled=self.loop_enabled,
                         loop_duration=self.loop_duration,
-                        start_time=time.time()
+                        start_time=time.time(),
+                        randomness_amt=random
                     )
                     print(f"Signal playing with valence {valence}, arousal {arousal}, intensity {intensity}")
                     self.mixer.add_voice(voice)
             else:
                 time.sleep(0.05)
 
-    def find_top_samples(self, valence, arousal, n):
+    def find_top_samples_randomness(self, valence, arousal, n):
+        """
+        Sort by distance ascending. Let best_dist be the min distance.
+        Let threshold = best_dist + randomness_amt.
+        Then collect all samples with distance <= threshold.
+        Shuffle them, pick up to n.
+        """
         if not self.audio_data:
             return []
         dist_list = []
         for (fn, v, a) in self.audio_data:
             dist = math.sqrt((v - valence)**2 + (a - arousal)**2)
             dist_list.append((fn, dist))
+        # sort ascending
         dist_list.sort(key=lambda x: x[1])
-        return dist_list[:n]
+        if not dist_list:
+            return []
+
+        best_dist = dist_list[0][1]
+        threshold = best_dist + self.randomness_amt
+        # collect all up to threshold
+        candidates = [item for item in dist_list if item[1] <= threshold]
+        random.shuffle(candidates)
+        # pick up to n
+        return candidates[:n]
 
 ################################################################################
 # Example usage
@@ -401,13 +423,14 @@ def test():
     mapper = AudioSentimentMapper(
         csv_path="mapping-society-sounds.csv",
         audio_root="Emo-Soundscapes/Emo-Soundscapes-Audio/600_Sounds/society",
-        max_layers=50,
+        max_layers=15,
         distance_volume_range=10.0,
         fade_in_ms=500,
         fade_out_ms=500,
         loop_enabled=False,
-        loop_duration=5.0,
+        loop_duration=2.0,
         samplerate=44100,
+        randomness_amt=0.05 #threshold distance for near-closest selection. incomign signals only 0.01-precision, whereas samples are scored at 0.000000001 precision
     )
 
     mapper.start()

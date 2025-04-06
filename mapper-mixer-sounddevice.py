@@ -422,7 +422,7 @@ class AudioSentimentMapper:
 def test():
     mapper = AudioSentimentMapper(
         csv_path="mapping-society-sounds.csv",
-        audio_root="Emo-Soundscapes/Emo-Soundscapes-Audio/600_Sounds/society",
+        audio_root="Emo-Soundscapes/Emo-Soundscapes-Audio/600_Sounds",
         max_layers=15,
         distance_volume_range=10.0,
         fade_in_ms=500,
